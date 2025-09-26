@@ -1,0 +1,8 @@
+# Ignore build files
+/target/
+/out/
+*.class
+*.log
+*.tmp
+*.bak
+*.DS_Store
