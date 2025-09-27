@@ -118,19 +118,90 @@ public class ImageConverter {
     }
 
     /**
-     * Guarda una BufferedImage en el formato especificado.
+     * Convierte una imagen con opciones avanzadas de compresión.
+     */
+    public boolean convertImage(String inputPath, String outputPath, String targetFormat,
+                                float quality, int pngCompression, boolean preserveQuality) {
+        try {
+            // Validar entrada
+            File inputFile = new File(inputPath);
+            if (!inputFile.exists() || !inputFile.isFile()) {
+                logger.severe("Archivo de entrada no existe: " + inputPath);
+                return false;
+            }
+
+            // Validar formato objetivo
+            SupportedFormat format;
+            try {
+                format = SupportedFormat.fromString(targetFormat.toLowerCase());
+            } catch (IllegalArgumentException e) {
+                logger.severe("Formato no soportado: " + targetFormat);
+                return false;
+            }
+
+            // Leer imagen de entrada
+            BufferedImage image = ImageIO.read(inputFile);
+            if (image == null) {
+                logger.severe("No se pudo leer la imagen: " + inputPath);
+                return false;
+            }
+
+            // Crear directorio de salida si no existe
+            File outputFile = new File(outputPath);
+            File outputDir = outputFile.getParentFile();
+            if (outputDir != null && !outputDir.exists()) {
+                outputDir.mkdirs();
+            }
+
+            // Convertir y guardar con nuevos parámetros
+            boolean success = saveImage(image, outputFile, format, quality, pngCompression, preserveQuality);
+
+            if (success) {
+                logger.info("Conversión exitosa: " + inputPath + " -> " + outputPath);
+            } else {
+                logger.severe("Error al guardar la imagen: " + outputPath);
+            }
+
+            return success;
+
+        } catch (IOException e) {
+            logger.severe("Error de E/S durante la conversión: " + e.getMessage());
+            return false;
+        } catch (Exception e) {
+            logger.severe("Error inesperado durante la conversión: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Sobrecarga para compatibilidad con la versión anterior.
      */
     private boolean saveImage(BufferedImage image, File outputFile, SupportedFormat format, float quality)
+            throws IOException {
+        return saveImage(image, outputFile, format, quality, 6, false);
+    }
+
+    /**
+     * Guarda una BufferedImage en el formato especificado con opciones avanzadas.
+     */
+    private boolean saveImage(BufferedImage image, File outputFile, SupportedFormat format,
+                              float quality, int pngCompression, boolean preserveQuality)
             throws IOException {
 
         String formatName = format.getExtension();
 
         // Para JPG, usar configuración de calidad específica
         if (format == SupportedFormat.JPG || format == SupportedFormat.JPEG) {
-            return saveJpegWithQuality(image, outputFile, quality);
+            float finalQuality = preserveQuality ? 1.0f : quality;
+            return saveJpegWithQuality(image, outputFile, finalQuality);
         }
 
-        // Para PNG y otros formatos, usar método estándar
+        // Para PNG, usar compresión específica
+        if (format == SupportedFormat.PNG) {
+            return savePngWithCompression(image, outputFile, pngCompression);
+        }
+
+        // Para otros formatos, usar método estándar
         return ImageIO.write(image, formatName, outputFile);
     }
 
@@ -160,6 +231,43 @@ public class ImageConverter {
             if (param.canWriteCompressed()) {
                 param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
                 param.setCompressionQuality(quality);
+            }
+
+            // Escribir imagen
+            writer.write(null, new javax.imageio.IIOImage(image, null, null), param);
+            return true;
+
+        } finally {
+            writer.dispose();
+        }
+    }
+
+    /**
+     * Guarda imagen como PNG con compresión específica.
+     */
+    private boolean savePngWithCompression(BufferedImage image, File outputFile, int compressionLevel)
+            throws IOException {
+
+        // Validar rango de compresión
+        if (compressionLevel < 0) compressionLevel = 0;
+        if (compressionLevel > 9) compressionLevel = 9;
+
+        // Obtener ImageWriter para PNG
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("png");
+        if (!writers.hasNext()) {
+            throw new IllegalStateException("No hay ImageWriter disponible para PNG");
+        }
+
+        ImageWriter writer = writers.next();
+
+        try (ImageOutputStream ios = ImageIO.createImageOutputStream(outputFile)) {
+            writer.setOutput(ios);
+
+            // Configurar parámetros de compresión
+            ImageWriteParam param = writer.getDefaultWriteParam();
+            if (param.canWriteCompressed()) {
+                param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                param.setCompressionQuality(1.0f - (compressionLevel / 9.0f));
             }
 
             // Escribir imagen

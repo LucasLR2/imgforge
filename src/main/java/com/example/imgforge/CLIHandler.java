@@ -62,6 +62,16 @@ public class CLIHandler implements Runnable {
             defaultValue = "false")
     private boolean dryRun;
 
+    @Option(names = {"--png-compression"},
+            description = "Nivel de compresión PNG (0-9, default: 6)",
+            defaultValue = "6")
+    private int pngCompression;
+
+    @Option(names = {"--preserve-quality"},
+            description = "Mantener calidad original (ignora configuración de calidad)",
+            defaultValue = "false")
+    private boolean preserveQuality;
+
     // Instancias de nuestras clases utilitarias
     private ImageConverter converter;
     private int totalFiles = 0;
@@ -100,6 +110,8 @@ public class CLIHandler implements Runnable {
             System.out.println("   Calidad: " + (quality * 100) + "%");
             System.out.println("   Recursivo: " + (recursive ? "Sí" : "No"));
             System.out.println("   Sobrescribir: " + (overwrite ? "Sí" : "No"));
+            System.out.printf("   Compresión PNG: %d%n", pngCompression);
+            System.out.printf("   Preservar calidad: %s%n", (preserveQuality ? "Sí" : "No"));
             System.out.println();
         }
 
@@ -144,6 +156,12 @@ public class CLIHandler implements Runnable {
         // Validar calidad
         if (quality < 0.0f || quality > 1.0f) {
             System.out.println("❌ La calidad debe estar entre 0.0 y 1.0. Valor actual: " + quality);
+            return false;
+        }
+
+        // Validar compresión PNG
+        if (pngCompression < 0 || pngCompression > 9) {
+            System.out.println("❌ La compresión PNG debe estar entre 0 y 9. Valor actual: " + pngCompression);
             return false;
         }
 
@@ -210,7 +228,7 @@ public class CLIHandler implements Runnable {
         }
 
         // Realizar conversión
-        boolean success = converter.convertImage(inputPath, outputPath, outputFormat, quality);
+        boolean success = converter.convertImage(inputPath, outputPath, outputFormat, quality, pngCompression, preserveQuality);
 
         if (success) {
             processedFiles++;
