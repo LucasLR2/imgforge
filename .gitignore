@@ -6,3 +6,8 @@
 *.tmp
 *.bak
 *.DS_Store
+
+# Configuración específica de IntelliJ IDEA
+.idea/compiler.xml
+.idea/encodings.xml
+.idea/jarRepositories.xml
