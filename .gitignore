@@ -11,3 +11,6 @@
 .idea/compiler.xml
 .idea/encodings.xml
 .idea/jarRepositories.xmltest-images/
+
+#Ignora carpeta de pruebas que se usan en local
+./test-images
